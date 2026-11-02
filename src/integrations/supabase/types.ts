@@ -14,7 +14,172 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      collectors: {
+        Row: {
+          color: string
+          created_at: string
+          id: string
+          name: string
+          phone: string
+        }
+        Insert: {
+          color?: string
+          created_at?: string
+          id?: string
+          name: string
+          phone?: string
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          id?: string
+          name?: string
+          phone?: string
+        }
+        Relationships: []
+      }
+      customers: {
+        Row: {
+          address: string
+          created_at: string
+          due_amount: number
+          due_date: string
+          id: string
+          last_payment_amount: number | null
+          last_payment_date: string | null
+          lat: number
+          lng: number
+          monthly_bill: number
+          name: string
+          phone: string
+          zone_id: string | null
+        }
+        Insert: {
+          address?: string
+          created_at?: string
+          due_amount?: number
+          due_date?: string
+          id?: string
+          last_payment_amount?: number | null
+          last_payment_date?: string | null
+          lat: number
+          lng: number
+          monthly_bill?: number
+          name: string
+          phone?: string
+          zone_id?: string | null
+        }
+        Update: {
+          address?: string
+          created_at?: string
+          due_amount?: number
+          due_date?: string
+          id?: string
+          last_payment_amount?: number | null
+          last_payment_date?: string | null
+          lat?: number
+          lng?: number
+          monthly_bill?: number
+          name?: string
+          phone?: string
+          zone_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customers_zone_id_fkey"
+            columns: ["zone_id"]
+            isOneToOne: false
+            referencedRelation: "zones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payments: {
+        Row: {
+          amount: number
+          collector_id: string | null
+          created_at: string
+          created_by: string | null
+          customer_id: string
+          id: string
+          method: string
+          paid_on: string
+          receipt_no: string | null
+        }
+        Insert: {
+          amount: number
+          collector_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_id: string
+          id?: string
+          method?: string
+          paid_on?: string
+          receipt_no?: string | null
+        }
+        Update: {
+          amount?: number
+          collector_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string
+          id?: string
+          method?: string
+          paid_on?: string
+          receipt_no?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payments_collector_id_fkey"
+            columns: ["collector_id"]
+            isOneToOne: false
+            referencedRelation: "collectors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      zones: {
+        Row: {
+          collector_id: string | null
+          color: string
+          created_at: string
+          id: string
+          name: string
+          polygon: Json
+        }
+        Insert: {
+          collector_id?: string | null
+          color?: string
+          created_at?: string
+          id?: string
+          name: string
+          polygon?: Json
+        }
+        Update: {
+          collector_id?: string | null
+          color?: string
+          created_at?: string
+          id?: string
+          name?: string
+          polygon?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "zones_collector_id_fkey"
+            columns: ["collector_id"]
+            isOneToOne: false
+            referencedRelation: "collectors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
