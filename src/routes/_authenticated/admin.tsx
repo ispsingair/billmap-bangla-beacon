@@ -168,14 +168,14 @@ function EditDialog({ table, row, fields, onClose, onSaved }: { table: Table; ro
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
 
   async function save() {
-    if (!form.name?.trim()) return void toast.error("Name is required");
+    if (!form["name"]?.trim()) return void toast.error("Name is required");
     const payload: Record<string, unknown> = {};
     for (const f of fields) {
       const v = form[f.key] ?? "";
       if (f.key === "polygon") {
         const poly = parsePolygon(v);
         if (!poly) return void toast.error("Boundary needs at least 3 lat,lng points");
-        payload.polygon = poly;
+        payload["polygon"] = poly;
       } else if (f.type === "number") {
         if (v === "" || !Number.isFinite(Number(v))) return void toast.error(`${f.label} must be a number`);
         payload[f.key] = Number(v);
@@ -185,8 +185,8 @@ function EditDialog({ table, row, fields, onClose, onSaved }: { table: Table; ro
       } else payload[f.key] = v.trim();
     }
     setSaving(true);
-    const q = row?.id
-      ? supabase.from(table).update(payload as never).eq("id", row.id)
+    const q = row?.["id"]
+      ? supabase.from(table).update(payload as never).eq("id", row["id"]!)
       : supabase.from(table).insert(payload as never);
     const { error } = await q;
     setSaving(false);
