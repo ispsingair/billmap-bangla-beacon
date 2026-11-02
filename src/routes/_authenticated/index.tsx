@@ -252,7 +252,7 @@ function CustomerCard({ c, zoneName, collectorName, onClose, onCollect }: {
         <Field k="Due date" v={c.due_date} mono />
       </dl>
       <div className="mt-4 grid grid-cols-2 gap-2">
-        <Button variant="collect" size="lg" onClick={onCollect} disabled={c.status === "paid" && Number(c.due_amount) <= 0 ? false : false}>
+        <Button variant="collect" size="lg" onClick={onCollect}>
           <Wallet /> Collect
         </Button>
         <Button variant="outline" size="lg" asChild>
