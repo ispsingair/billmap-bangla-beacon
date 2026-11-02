@@ -8,3 +8,10 @@
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
+
+## Project rules
+- Bill status (paid/unpaid/overdue) is derived on read from `due_amount` and `due_date` in `src/lib/billing.ts`; never persist it. Why: avoids cron jobs and stale state.
+- Payments reduce customer dues via the `apply_payment` DB trigger on `payments` insert; the client only inserts payments. Why: keeps due/totals consistent.
+- A customer's collector is derived from their zone's `collector_id`. Why: one assignment point per zone.
+- All data tables are staff-only: any signed-in user can read/write (RLS `TO authenticated`). App pages live under `src/routes/_authenticated/`.
+- The Leaflet map is lazy-loaded (`React.lazy`) so Leaflet never enters SSR.
