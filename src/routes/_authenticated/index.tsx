@@ -228,7 +228,7 @@ function Stat({ label, value, tone }: { label: string; value: string | number; t
 const panel = "absolute inset-x-2 bottom-2 z-[1000] rounded-2xl border bg-card p-4 glass sm:inset-x-auto sm:left-3 sm:bottom-3 sm:w-96";
 
 function CustomerCard({ c, zoneName, collectorName, onClose, onCollect }: {
-  c: Customer; zoneName?: string; collectorName?: string; onClose: () => void; onCollect: () => void;
+  c: Customer; zoneName?: string | undefined; collectorName?: string | undefined; onClose: () => void; onCollect: () => void;
 }) {
   return (
     <div className={panel}>

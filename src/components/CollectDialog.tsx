@@ -39,7 +39,7 @@ export function CollectDialog({
   async function save() {
     if (!customer) return;
     const amt = Number(amount);
-    if (!amt || amt <= 0) return toast.error("Enter a valid amount");
+    if (!amt || amt <= 0) return void toast.error("Enter a valid amount");
     setSaving(true);
     const { error } = await supabase.from("payments").insert({
       customer_id: customer.id,
@@ -50,7 +50,7 @@ export function CollectDialog({
       receipt_no: receipt.trim() || null,
     });
     setSaving(false);
-    if (error) return toast.error(error.message);
+    if (error) return void toast.error(error.message);
     toast.success(`${formatBDT(amt)} collected from ${customer.name}`);
     await refresh();
     onOpenChange(false);

@@ -80,7 +80,7 @@ function AdminPage() {
   async function remove(table: Table, id: string, label: string) {
     if (!confirm(`Delete ${label}?`)) return;
     const { error } = await supabase.from(table).delete().eq("id", id);
-    if (error) return toast.error(error.message);
+    if (error) return void toast.error(error.message);
     toast.success("Deleted");
     refresh();
   }
@@ -168,16 +168,16 @@ function EditDialog({ table, row, fields, onClose, onSaved }: { table: Table; ro
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
 
   async function save() {
-    if (!form.name?.trim()) return toast.error("Name is required");
+    if (!form.name?.trim()) return void toast.error("Name is required");
     const payload: Record<string, unknown> = {};
     for (const f of fields) {
       const v = form[f.key] ?? "";
       if (f.key === "polygon") {
         const poly = parsePolygon(v);
-        if (!poly) return toast.error("Boundary needs at least 3 lat,lng points");
+        if (!poly) return void toast.error("Boundary needs at least 3 lat,lng points");
         payload.polygon = poly;
       } else if (f.type === "number") {
-        if (v === "" || !Number.isFinite(Number(v))) return toast.error(`${f.label} must be a number`);
+        if (v === "" || !Number.isFinite(Number(v))) return void toast.error(`${f.label} must be a number`);
         payload[f.key] = Number(v);
       } else if (f.type === "select" || f.type === "date") {
         payload[f.key] = v || null;
@@ -190,7 +190,7 @@ function EditDialog({ table, row, fields, onClose, onSaved }: { table: Table; ro
       : supabase.from(table).insert(payload as never);
     const { error } = await q;
     setSaving(false);
-    if (error) return toast.error(error.message);
+    if (error) return void toast.error(error.message);
     toast.success("Saved");
     onSaved();
     onClose();
