@@ -379,6 +379,17 @@ export type Database = {
           user_id: string
         }[]
       }
+      mark_months_paid: {
+        Args: {
+          p_allocations: Json
+          p_customer: string
+          p_date: string
+          p_key: string
+          p_method: string
+          p_receipt: string
+        }
+        Returns: string
+      }
       set_staff_role: {
         Args: {
           p_collector?: string

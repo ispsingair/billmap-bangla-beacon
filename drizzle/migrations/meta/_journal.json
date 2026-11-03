@@ -36,6 +36,13 @@
       "when": 1793676444821,
       "tag": "0004_repair_optional_staff_collector_argument",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1793677174150,
+      "tag": "0005_admin_settle_selected_months",
+      "breakpoints": true
     }
   ]
 }
