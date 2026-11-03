@@ -12,6 +12,7 @@
 ## Project rules
 - Bill status and customer totals are derived from monthly bills and non-voided allocations; legacy customer dues are deprecated. Why: multiple outstanding months must remain consistent.
 - Collections use the transactional collect_months RPC with idempotency keys and customer locking; payments are immutable and reversals are audited. Why: prevents overpayment and partial multi-month writes.
+- Admin Mark Paid uses mark_months_paid to validate selected remaining balances and delegate to collect_months; selection is explicit and confirmation records payment details. Why: no parallel statuses or accidental settlement of other months.
 - Recurrence uses an idempotent monthly database job plus staff sync catch-up, with customer recurring defaults. Why: no manual recreation and offline months are recovered.
 - A customer's collector is derived from their zone's `collector_id`. Why: one assignment point per zone.
 - All data is staff-only with user_roles enforced by RLS: admins manage, collectors read assigned zones/customers and collect via RPC. Existing pre-upgrade staff retain admin; later signups have no access until assigned. Why: preserve legacy access without public privilege escalation.
