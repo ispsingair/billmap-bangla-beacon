@@ -1,4 +1,5 @@
 # Consolidated core pass
+- [ ] Repair generated-type mismatches; verify clean preview compilation and regression tests.
 - [ ] Add monthly bills, allocations, recurring generation and historical backfill.
 - [ ] Enforce admin/assigned collector roles and secure owner access.
 - [ ] Integrate month-aware collection, details, filters and management.
