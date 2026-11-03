@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { toast } from "sonner";
 import { ArrowLeft, Pencil, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { StatusBadge } from "@/components/StatusBadge";
 import { supabase } from "@/integrations/supabase/client";
 import { appDataQuery, useRefresh, type Collector, type Customer, type Zone } from "@/lib/data";
-import { formatBDT } from "@/lib/billing";
+import { formatBDT, todayISO, type BillStatus } from "@/lib/billing";
+import { filterCustomers, type CustomerFilters } from "@/lib/monthly";
+import { MonthSelection } from "@/components/MonthSelection";
+import { BillManager } from "@/components/BillManager";
+import { StaffSettings } from "@/components/StaffSettings";
+import { CollectDialog } from "@/components/CollectDialog";
+import { containingZones, validPolygon } from "@/lib/zones";
+const ZoneDrawing = lazy(()=>import('@/components/ZoneDrawing'));
 
 export const Route = createFileRoute("/_authenticated/admin")({
   head: () => ({
@@ -35,6 +42,11 @@ type Table = "customers" | "collectors" | "zones";
 function AdminPage() {
   const { data } = useSuspenseQuery(appDataQuery);
   const refresh = useRefresh();
+  const [filters,setFilters]=useState<CustomerFilters>({search:'',zone:'all',collector:'all',status:'all',due:'all',months:[],sort:'name'});
+  const [billCustomer,setBillCustomer]=useState<string|null>(null);
+  const [collectCustomer,setCollectCustomer]=useState<string|null>(null);
+  const filtered=filterCustomers(data.customers,data.bills,data.zones,filters);
+  const change=(key:keyof CustomerFilters,value:string|string[])=>setFilters(f=>({...f,[key]:value}));
   const [edit, setEdit] = useState<{ table: Table; row: Record<string, string> | null } | null>(null);
 
   const zoneOpts = [{ value: "", label: "— None —" }, ...data.zones.map((z) => ({ value: z.id, label: z.name }))];
@@ -51,8 +63,9 @@ function AdminPage() {
       { key: "lat", label: "Latitude", type: "number" },
       { key: "lng", label: "Longitude", type: "number" },
       { key: "monthly_bill", label: "Monthly bill (৳)", type: "number" },
-      { key: "due_amount", label: "Due amount (৳)", type: "number" },
-      { key: "due_date", label: "Due date", type: "date" },
+      { key: "billing_day", label: "Monthly due day (1–28)", type: "number" },
+      { key: "billing_start_month", label: "Billing start (first day)", type: "date" },
+      { key: "recurring_enabled", label: "Recurring bills", type: "select", options:[{value:'true',label:'Enabled'},{value:'false',label:'Paused'}] },
     ],
     collectors: [
       { key: "name", label: "Name", full: true },
@@ -63,7 +76,7 @@ function AdminPage() {
       { key: "name", label: "Name" },
       { key: "color", label: "Colour", type: "color" },
       { key: "collector_id", label: "Collector", type: "select", options: colOpts, full: true },
-      { key: "polygon", label: "Boundary points", full: true, hint: "lat,lng; lat,lng; … (3 or more corners)" },
+      { key: "polygon", label: "Zone boundary", full: true },
     ],
   };
 
@@ -98,6 +111,7 @@ function AdminPage() {
     </div>
   );
 
+  if(data.role!=="admin")return <div className="p-6"><h1 className="font-bold">Admin access required</h1><Button asChild variant="outline"><Link to="/">Back to map</Link></Button></div>;
   return (
     <div className="min-h-dvh bg-background">
       <header className="flex items-center gap-2 border-b bg-card px-3 py-2">
@@ -110,17 +124,31 @@ function AdminPage() {
             <TabsTrigger value="customers" className="flex-1">Customers ({data.customers.length})</TabsTrigger>
             <TabsTrigger value="collectors" className="flex-1">Collectors</TabsTrigger>
             <TabsTrigger value="zones" className="flex-1">Zones</TabsTrigger>
+            <TabsTrigger value="payments" className="flex-1">Payments</TabsTrigger>
+            <TabsTrigger value="settings" className="flex-1">Staff</TabsTrigger>
           </TabsList>
           <TabsContent value="customers" className="mt-4">
             {header("customers", "Customers")}
+            <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+              <Input className="col-span-full" aria-label="Search customers" placeholder="Name, phone or address" value={filters.search} onChange={e=>change('search',e.target.value)} />
+              {([
+                ['zone','Zone',[{value:'all',label:'All zones'},...zoneOpts.filter(x=>x.value)]],
+                ['collector','Collector',[{value:'all',label:'All collectors'},...colOpts.filter(x=>x.value)]],
+                ['status','Payment status',[{value:'all',label:'All statuses'},{value:'paid',label:'Paid'},{value:'unpaid',label:'Due'},{value:'overdue',label:'Overdue'}]],
+                ['due','Due amount',[{value:'all',label:'All amounts'},{value:'none',label:'No due'},{value:'has',label:'Has due'}]],
+                ['sort','Sort',[{value:'name',label:'Name'},{value:'due',label:'Due amount'},{value:'date',label:'Due date'},{value:'recent',label:'Recently added'}]],
+              ] as [keyof CustomerFilters,string,{value:string;label:string}[]][]).map(([key,label,options])=><div key={key}><Label>{label}</Label><Select value={String(filters[key])} onValueChange={v=>change(key,v)}><SelectTrigger aria-label={label}><SelectValue /></SelectTrigger><SelectContent>{options.map(o=><SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent></Select></div>)}
+              <MonthSelection months={[...new Set(data.bills.map(b=>b.billing_month))].sort().reverse()} selected={filters.months} onChange={v=>change('months',v)} />
+            </div>
+            <p className="mb-2 text-xs text-muted-foreground">{filtered.length} customers</p>
             <ul className="divide-y rounded-xl border bg-card">
-              {data.customers.map((c) => (
-                <li key={c.id} className="flex items-center gap-3 px-3 py-2">
+              {filtered.map((c) => (
+                <li key={c.id} className="flex flex-wrap items-center gap-3 px-3 py-2">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2"><span className="truncate font-medium">{c.name}</span><StatusBadge status={c.status} /></div>
-                    <div className="truncate text-xs text-muted-foreground">{zoneName(c.zone_id)} · <span className="num">{c.phone}</span> · Due <span className="num">{formatBDT(Number(c.due_amount))}</span></div>
+                    <div className="truncate text-xs text-muted-foreground">{zoneName(c.zone_id)} · <span className="num">{c.phone}</span> · Due <span className="num">{formatBDT(c.outstanding)}</span></div>
                   </div>
-                  {actions("customers", c, c.name)}
+                  <div className="flex flex-wrap justify-end gap-1"><Button size="sm" variant="outline" onClick={()=>setBillCustomer(c.id)}>View</Button><Button size="sm" variant="collect" disabled={c.outstanding<=0} onClick={()=>setCollectCustomer(c.id)}>Collect</Button>{actions("customers", data.customers.find(x=>x.id===c.id) ?? c, c.name)}</div>
                 </li>
               ))}
             </ul>
@@ -129,7 +157,7 @@ function AdminPage() {
             {header("collectors", "Collectors")}
             <ul className="divide-y rounded-xl border bg-card">
               {data.collectors.map((c) => (
-                <li key={c.id} className="flex items-center gap-3 px-3 py-2">
+                <li key={c.id} className="flex flex-wrap items-center gap-3 px-3 py-2">
                   <span className="size-3 rounded-full" style={{ backgroundColor: c.color }} />
                   <div className="flex-1"><div className="font-medium">{c.name}</div><div className="num text-xs text-muted-foreground">{c.phone}</div></div>
                   <span className="text-xs text-muted-foreground">{data.zones.filter((z) => z.collector_id === c.id).map((z) => z.name).join(", ") || "No zone"}</span>
@@ -142,7 +170,7 @@ function AdminPage() {
             {header("zones", "Zones")}
             <ul className="divide-y rounded-xl border bg-card">
               {data.zones.map((z) => (
-                <li key={z.id} className="flex items-center gap-3 px-3 py-2">
+                <li key={z.id} className="flex flex-wrap items-center gap-3 px-3 py-2">
                   <span className="size-3 rounded-sm" style={{ backgroundColor: z.color }} />
                   <div className="flex-1"><div className="font-medium">{z.name}</div><div className="text-xs text-muted-foreground">Collector: {colName(z.collector_id)} · {data.customers.filter((c) => c.zone_id === z.id).length} customers</div></div>
                   {actions("zones", z, z.name)}
@@ -150,9 +178,13 @@ function AdminPage() {
               ))}
             </ul>
           </TabsContent>
+          <TabsContent value="payments"><div className="divide-y">{data.payments.map(p=><div key={p.id} className="flex flex-wrap items-center gap-3 py-3 text-sm"><div className="flex-1">{data.customers.find(c=>c.id===p.customer_id)?.name}<div className="text-xs text-muted-foreground">{p.paid_on} · {p.method} · {p.receipt_no ?? '—'} · {p.allocated?'Monthly collection':'Historical receipt'}</div></div><b className="num">{formatBDT(p.amount)}</b>{p.voided_at?<span>Reversed</span>:p.allocated&&<Button size="sm" variant="outline" onClick={async()=>{const reason=prompt('Reason for reversing this collection');if(!reason)return;const r=await supabase.rpc('void_collection',{p_payment:p.id,p_reason:reason});if(r.error)toast.error(r.error.message);else refresh();}}>Reverse</Button>}</div>)}</div></TabsContent>
+          <TabsContent value="settings"><Suspense fallback={<p>Loading staff…</p>}><StaffSettings collectors={data.collectors} /></Suspense></TabsContent>
         </Tabs>
       </div>
-      {edit && <EditDialog table={edit.table} row={edit.row} fields={fields[edit.table]} onClose={() => setEdit(null)} onSaved={refresh} />}
+      {billCustomer && data.customers.find(c=>c.id===billCustomer) && <BillManager customer={data.customers.find(c=>c.id===billCustomer) as Customer} onClose={()=>setBillCustomer(null)} onSaved={refresh} />}
+      <CollectDialog customer={data.customers.find(c=>c.id===collectCustomer) ?? null} collectorId={null} open={!!collectCustomer} onOpenChange={o=>!o&&setCollectCustomer(null)} />
+      {edit && <EditDialog zones={data.zones} table={edit.table} row={edit.row} fields={fields[edit.table]} onClose={() => setEdit(null)} onSaved={refresh} />}
     </div>
   );
 }
@@ -162,9 +194,10 @@ function parsePolygon(s: string): [number, number][] | null {
   return pts.length >= 3 ? pts : null;
 }
 
-function EditDialog({ table, row, fields, onClose, onSaved }: { table: Table; row: Record<string, string> | null; fields: FieldDef[]; onClose: () => void; onSaved: () => void }) {
-  const [form, setForm] = useState<Record<string, string>>(() => row ?? { color: "#0e7490", lat: "23.8069", lng: "90.3687", monthly_bill: "800", due_amount: "800" });
+function EditDialog({ table, row, fields, onClose, onSaved, zones }: { zones:Zone[]; table: Table; row: Record<string, string> | null; fields: FieldDef[]; onClose: () => void; onSaved: () => void }) {
+  const [form, setForm] = useState<Record<string, string>>(() => row ?? { color: "#0e7490", lat: "23.8069", lng: "90.3687", monthly_bill: "800", billing_day:"10",billing_start_month:todayISO().slice(0,7)+"-01",recurring_enabled:"true" });
   const [saving, setSaving] = useState(false);
+  const [points,setPoints]=useState<[number,number][]>(()=>parsePolygon(row?.["polygon"]??"")??[]);
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
 
   async function save() {
@@ -173,20 +206,27 @@ function EditDialog({ table, row, fields, onClose, onSaved }: { table: Table; ro
     for (const f of fields) {
       const v = form[f.key] ?? "";
       if (f.key === "polygon") {
-        const poly = parsePolygon(v);
-        if (!poly) return void toast.error("Boundary needs at least 3 lat,lng points");
-        payload["polygon"] = poly;
+        if (!validPolygon(points)) return void toast.error("Draw a valid boundary with at least 3 points and no crossing edges");
+        payload["polygon"] = points;
       } else if (f.type === "number") {
         if (v === "" || !Number.isFinite(Number(v))) return void toast.error(`${f.label} must be a number`);
         payload[f.key] = Number(v);
+      } else if(f.key === "recurring_enabled") {payload[f.key]=v!=="false";
       } else if (f.type === "select" || f.type === "date") {
         payload[f.key] = v || null;
         if (f.type === "date" && !v) delete payload[f.key];
       } else payload[f.key] = v.trim();
     }
+    if(table==='customers') {
+      const matches=containingZones(Number(payload.lat),Number(payload.lng),zones);
+      if(matches.length===1)payload.zone_id=matches[0]?.id;
+      else if(matches.length>1&&!matches.some(z=>z.id===payload.zone_id))return void toast.error('Coordinates overlap zones; select a containing zone');
+      else if(matches.length===0&&payload.zone_id)return void toast.error('Selected zone does not contain these coordinates; choose None or adjust the boundary');
+    }
     setSaving(true);
-    const q = row?.["id"]
-      ? supabase.from(table).update(payload as never).eq("id", row["id"]!)
+    const rowId=row?.["id"];
+    const q = rowId
+      ? supabase.from(table).update(payload as never).eq("id", rowId)
       : supabase.from(table).insert(payload as never);
     const { error } = await q;
     setSaving(false);
@@ -198,17 +238,17 @@ function EditDialog({ table, row, fields, onClose, onSaved }: { table: Table; ro
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-h-[90dvh] overflow-y-auto max-w-xl">
         <DialogHeader><DialogTitle>{row ? "Edit" : "Add"} {table.slice(0, -1)}</DialogTitle></DialogHeader>
         <div className="grid grid-cols-2 gap-3">
           {fields.map((f) => (
             <div key={f.key} className={f.full ? "col-span-2 grid gap-1.5" : "grid gap-1.5"}>
               <Label>{f.label}</Label>
-              {f.type === "select" ? (
+              {f.key === "polygon" ? <Suspense fallback={<p>Loading map…</p>}><ZoneDrawing points={points} zones={zones} onChange={setPoints} /></Suspense> : f.type === "select" ? (
                 <Select value={form[f.key] || "__none"} onValueChange={(v) => set(f.key, v === "__none" ? "" : v)}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {f.options!.map((o) => <SelectItem key={o.value || "__none"} value={o.value || "__none"}>{o.label}</SelectItem>)}
+                    {(f.options ?? []).map((o) => <SelectItem key={o.value || "__none"} value={o.value || "__none"}>{o.label}</SelectItem>)}
                   </SelectContent>
                 </Select>
               ) : (

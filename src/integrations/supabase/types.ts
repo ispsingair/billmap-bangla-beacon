@@ -41,6 +41,8 @@ export type Database = {
       customers: {
         Row: {
           address: string
+          billing_day: number
+          billing_start_month: string
           created_at: string
           due_amount: number
           due_date: string
@@ -52,10 +54,13 @@ export type Database = {
           monthly_bill: number
           name: string
           phone: string
+          recurring_enabled: boolean
           zone_id: string | null
         }
         Insert: {
           address?: string
+          billing_day?: number
+          billing_start_month?: string
           created_at?: string
           due_amount?: number
           due_date?: string
@@ -67,10 +72,13 @@ export type Database = {
           monthly_bill?: number
           name: string
           phone?: string
+          recurring_enabled?: boolean
           zone_id?: string | null
         }
         Update: {
           address?: string
+          billing_day?: number
+          billing_start_month?: string
           created_at?: string
           due_amount?: number
           due_date?: string
@@ -82,6 +90,7 @@ export type Database = {
           monthly_bill?: number
           name?: string
           phone?: string
+          recurring_enabled?: boolean
           zone_id?: string | null
         }
         Relationships: [
@@ -94,9 +103,95 @@ export type Database = {
           },
         ]
       }
-      payments: {
+      monthly_bills: {
         Row: {
           amount: number
+          billing_month: string
+          created_at: string
+          customer_id: string
+          due_date: string
+          id: string
+          legacy_import: boolean
+          opening_paid: number
+        }
+        Insert: {
+          amount: number
+          billing_month: string
+          created_at?: string
+          customer_id: string
+          due_date: string
+          id?: string
+          legacy_import?: boolean
+          opening_paid?: number
+        }
+        Update: {
+          amount?: number
+          billing_month?: string
+          created_at?: string
+          customer_id?: string
+          due_date?: string
+          id?: string
+          legacy_import?: boolean
+          opening_paid?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "monthly_bills_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payment_allocations: {
+        Row: {
+          amount: number
+          bill_id: string
+          id: string
+          payment_id: string
+        }
+        Insert: {
+          amount: number
+          bill_id: string
+          id?: string
+          payment_id: string
+        }
+        Update: {
+          amount?: number
+          bill_id?: string
+          id?: string
+          payment_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_allocations_bill_id_fkey"
+            columns: ["bill_id"]
+            isOneToOne: false
+            referencedRelation: "bill_balances"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_allocations_bill_id_fkey"
+            columns: ["bill_id"]
+            isOneToOne: false
+            referencedRelation: "monthly_bills"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_allocations_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payments: {
+        Row: {
+          allocated: boolean
+          amount: number
+          collection_key: string | null
           collector_id: string | null
           created_at: string
           created_by: string | null
@@ -105,9 +200,13 @@ export type Database = {
           method: string
           paid_on: string
           receipt_no: string | null
+          void_reason: string | null
+          voided_at: string | null
         }
         Insert: {
+          allocated?: boolean
           amount: number
+          collection_key?: string | null
           collector_id?: string | null
           created_at?: string
           created_by?: string | null
@@ -116,9 +215,13 @@ export type Database = {
           method?: string
           paid_on?: string
           receipt_no?: string | null
+          void_reason?: string | null
+          voided_at?: string | null
         }
         Update: {
+          allocated?: boolean
           amount?: number
+          collection_key?: string | null
           collector_id?: string | null
           created_at?: string
           created_by?: string | null
@@ -127,6 +230,8 @@ export type Database = {
           method?: string
           paid_on?: string
           receipt_no?: string | null
+          void_reason?: string | null
+          voided_at?: string | null
         }
         Relationships: [
           {
@@ -141,6 +246,32 @@ export type Database = {
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          collector_id: string | null
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          collector_id?: string | null
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          collector_id?: string | null
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_roles_collector_id_fkey"
+            columns: ["collector_id"]
+            isOneToOne: false
+            referencedRelation: "collectors"
             referencedColumns: ["id"]
           },
         ]
@@ -182,13 +313,92 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      bill_balances: {
+        Row: {
+          amount: number | null
+          billing_month: string | null
+          created_at: string | null
+          customer_id: string | null
+          due_date: string | null
+          id: string | null
+          opening_paid: number | null
+          outstanding: number | null
+        }
+        Insert: {
+          amount?: number | null
+          billing_month?: string | null
+          created_at?: string | null
+          customer_id?: string | null
+          due_date?: string | null
+          id?: string | null
+          opening_paid?: number | null
+          outstanding?: never
+        }
+        Update: {
+          amount?: number | null
+          billing_month?: string | null
+          created_at?: string | null
+          customer_id?: string | null
+          due_date?: string | null
+          id?: string | null
+          opening_paid?: number | null
+          outstanding?: never
+        }
+        Relationships: [
+          {
+            foreignKeyName: "monthly_bills_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
-      [_ in never]: never
+      can_access_customer: { Args: { cid: string }; Returns: boolean }
+      collect_months: {
+        Args: {
+          p_allocations: Json
+          p_customer: string
+          p_date: string
+          p_key: string
+          p_method: string
+          p_receipt: string
+        }
+        Returns: string
+      }
+      generate_monthly_bills: { Args: never; Returns: number }
+      is_admin: { Args: never; Returns: boolean }
+      list_staff_accounts: {
+        Args: never
+        Returns: {
+          collector_id: string
+          email: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }[]
+      }
+      set_staff_role: {
+        Args: {
+          p_collector: string
+          p_role: Database["public"]["Enums"]["app_role"]
+          p_user: string
+        }
+        Returns: undefined
+      }
+      sync_billing: { Args: never; Returns: number }
+      void_collection: {
+        Args: { p_payment: string; p_reason: string }
+        Returns: undefined
+      }
+      zone_contains: {
+        Args: { latitude: number; longitude: number; poly: Json }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "collector"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -315,6 +525,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "collector"],
+    },
   },
 } as const

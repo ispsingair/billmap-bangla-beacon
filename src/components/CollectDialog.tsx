@@ -6,6 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
+import { Checkbox } from "@/components/ui/checkbox";
+import { monthLabel } from "@/lib/monthly";
 import { formatBDT, PAYMENT_METHODS, todayISO } from "@/lib/billing";
 import { useRefresh, type Customer } from "@/lib/data";
 
@@ -21,7 +23,8 @@ export function CollectDialog({
   onOpenChange: (o: boolean) => void;
 }) {
   const refresh = useRefresh();
-  const [amount, setAmount] = useState("");
+  const [allocations, setAllocations] = useState<Record<string,string>>({});
+  const [key, setKey] = useState("");
   const [method, setMethod] = useState<string>("cash");
   const [date, setDate] = useState(todayISO());
   const [receipt, setReceipt] = useState("");
@@ -29,7 +32,8 @@ export function CollectDialog({
 
   useEffect(() => {
     if (open && customer) {
-      setAmount(String(Number(customer.due_amount) || Number(customer.monthly_bill)));
+      setAllocations(Object.fromEntries(customer.bills.filter(b=>b.outstanding>0).map(b=>[b.id,String(b.outstanding)])));
+      setKey(crypto.randomUUID());
       setMethod("cash");
       setDate(todayISO());
       setReceipt("");
@@ -38,16 +42,13 @@ export function CollectDialog({
 
   async function save() {
     if (!customer) return;
-    const amt = Number(amount);
-    if (!amt || amt <= 0) return void toast.error("Enter a valid amount");
+    const entries = Object.entries(allocations).map(([bill_id,amount])=>({bill_id,amount:Number(amount)}));
+    const amt = entries.reduce((sum,e)=>sum+e.amount,0);
+    if (!entries.length || entries.some(e=>!Number.isFinite(e.amount)||e.amount<=0||e.amount>(customer.bills.find(b=>b.id===e.bill_id)?.outstanding ?? 0))) return void toast.error("Enter valid amounts within each month’s outstanding balance");
     setSaving(true);
-    const { error } = await supabase.from("payments").insert({
-      customer_id: customer.id,
-      collector_id: collectorId,
-      amount: amt,
-      method,
-      paid_on: date,
-      receipt_no: receipt.trim() || null,
+    const { error } = await supabase.rpc("collect_months", {
+      p_customer: customer.id, p_allocations: entries, p_method: method,
+      p_date: date, p_receipt: receipt.trim(), p_key: key,
     });
     setSaving(false);
     if (error) return void toast.error(error.message);
@@ -68,10 +69,14 @@ export function CollectDialog({
           )}
         </DialogHeader>
         <div className="grid gap-3">
-          <div className="grid gap-1.5">
-            <Label htmlFor="amt">Amount (৳)</Label>
-            <Input id="amt" inputMode="decimal" className="num text-lg h-11" value={amount} onChange={(e) => setAmount(e.target.value)} />
+          <div className="max-h-64 overflow-y-auto divide-y">
+            {customer?.bills.map(b=><div key={b.id} className="flex items-center gap-3 py-2">
+              <Checkbox aria-label={`Pay ${monthLabel(b.billing_month)}`} disabled={b.outstanding<=0} checked={b.id in allocations} onCheckedChange={checked=>setAllocations(prev=>{const next={...prev};if(checked)next[b.id]=String(b.outstanding);else delete next[b.id];return next;})} />
+              <div className="min-w-0 flex-1 text-sm"><div>{monthLabel(b.billing_month)}</div><div className="text-xs text-muted-foreground">{b.outstanding>0?`Due ${b.due_date} · ${formatBDT(b.outstanding)}`:'Paid'}</div></div>
+              {b.id in allocations && <Input aria-label={`Amount for ${monthLabel(b.billing_month)}`} className="w-24 num" inputMode="decimal" value={allocations[b.id]} onChange={e=>setAllocations(prev=>({...prev,[b.id]:e.target.value}))} />}
+            </div>)}
           </div>
+          <p className="text-sm">Collect <b className="num">{formatBDT(Object.values(allocations).reduce((s,v)=>s+Number(v||0),0))}</b> · Remaining <b className="num">{formatBDT(Math.max(0,Number(customer?.due_amount ?? 0)-Object.values(allocations).reduce((s,v)=>s+Number(v||0),0)))}</b></p>
           <div className="grid grid-cols-2 gap-3">
             <div className="grid gap-1.5">
               <Label>Method</Label>
@@ -95,7 +100,7 @@ export function CollectDialog({
           </div>
         </div>
         <DialogFooter>
-          <Button variant="collect" size="lg" className="w-full" onClick={save} disabled={saving}>
+          <Button variant="collect" size="lg" className="w-full" onClick={save} disabled={saving || !Object.keys(allocations).length}>
             {saving ? "Saving…" : "Save payment"}
           </Button>
         </DialogFooter>
