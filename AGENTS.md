@@ -10,8 +10,10 @@
 <!-- LOVABLE:END -->
 
 ## Project rules
-- Bill status (paid/unpaid/overdue) is derived on read from `due_amount` and `due_date` in `src/lib/billing.ts`; never persist it. Why: avoids cron jobs and stale state.
-- Payments reduce customer dues via the `apply_payment` DB trigger on `payments` insert; the client only inserts payments. Why: keeps due/totals consistent.
+- Bill status and customer totals are derived from monthly bills and non-voided allocations; legacy customer dues are deprecated. Why: multiple outstanding months must remain consistent.
+- Collections use the transactional collect_months RPC with idempotency keys and customer locking; payments are immutable and reversals are audited. Why: prevents overpayment and partial multi-month writes.
+- Recurrence uses an idempotent monthly database job plus staff sync catch-up, with customer recurring defaults. Why: no manual recreation and offline months are recovered.
 - A customer's collector is derived from their zone's `collector_id`. Why: one assignment point per zone.
-- All data tables are staff-only: any signed-in user can read/write (RLS `TO authenticated`). App pages live under `src/routes/_authenticated/`.
+- All data is staff-only with user_roles enforced by RLS: admins manage, collectors read assigned zones/customers and collect via RPC. Existing pre-upgrade staff retain admin; later signups have no access until assigned. Why: preserve legacy access without public privilege escalation.
 - The Leaflet map is lazy-loaded (`React.lazy`) so Leaflet never enters SSR.
+- Polygon editing uses lazy-loaded Leaflet Draw and Turf validation; automatic customer assignment only occurs for exactly one containing zone, with explicit selection for ambiguity. Why: avoid silently assigning overlapping zones.

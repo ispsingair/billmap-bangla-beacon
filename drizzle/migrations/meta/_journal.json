@@ -15,6 +15,13 @@
       "when": 1793676217389,
       "tag": "0001_monthly_billing_and_assigned_roles",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793676237109,
+      "tag": "0002_preserve_legacy_staff_and_validation",
+      "breakpoints": true
     }
   ]
 }
