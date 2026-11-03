@@ -218,10 +218,10 @@ function EditDialog({ table, row, fields, onClose, onSaved, zones }: { zones:Zon
       } else payload[f.key] = v.trim();
     }
     if(table==='customers') {
-      const matches=containingZones(Number(payload.lat),Number(payload.lng),zones);
-      if(matches.length===1)payload.zone_id=matches[0]?.id;
-      else if(matches.length>1&&!matches.some(z=>z.id===payload.zone_id))return void toast.error('Coordinates overlap zones; select a containing zone');
-      else if(matches.length===0&&payload.zone_id)return void toast.error('Selected zone does not contain these coordinates; choose None or adjust the boundary');
+      const matches=containingZones(Number(payload['lat']),Number(payload['lng']),zones);
+      if(matches.length===1)payload['zone_id']=matches[0]?.id;
+      else if(matches.length>1&&!matches.some(z=>z.id===payload['zone_id']))return void toast.error('Coordinates overlap zones; select a containing zone');
+      else if(matches.length===0&&payload['zone_id'])return void toast.error('Selected zone does not contain these coordinates; choose None or adjust the boundary');
     }
     setSaving(true);
     const rowId=row?.["id"];
