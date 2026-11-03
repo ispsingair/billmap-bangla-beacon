@@ -29,6 +29,13 @@
       "when": 1793676271406,
       "tag": "0003_billing_backfill_geometry_and_staff_management",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1793676444821,
+      "tag": "0004_repair_optional_staff_collector_argument",
+      "breakpoints": true
     }
   ]
 }
