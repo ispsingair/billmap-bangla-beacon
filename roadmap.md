@@ -5,4 +5,5 @@
 - [x] Integrate month-aware collection, details, filters and management.
 - [x] Add polygon drawing and safe customer-zone assignment.
 - [x] Validate monthly/geometry regression tests, admin route registration, current RLS policies and isolated polygon drawing.
-- [ ] Verify signed-in administration and collection end-to-end. Blocked: requester has no matching app account/session; existing users cannot be chosen without approval.
+- [ ] Repair admin month-specific settlement in billing detail and filtered customer rows using payment allocations, without settling unselected months.
+- [ ] Test month settlement, filtered-list refresh and admin-only permissions; run full regression suite and verify signed-in preview.
