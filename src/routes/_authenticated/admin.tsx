@@ -18,6 +18,7 @@ import { MonthSelection } from "@/components/MonthSelection";
 import { BillManager } from "@/components/BillManager";
 import { StaffSettings } from "@/components/StaffSettings";
 import { CollectDialog } from "@/components/CollectDialog";
+import { MarkPaidDialog } from "@/components/MarkPaidDialog";
 import { containingZones, validPolygon } from "@/lib/zones";
 const ZoneDrawing = lazy(()=>import('@/components/ZoneDrawing'));
 
@@ -45,6 +46,7 @@ function AdminPage() {
   const [filters,setFilters]=useState<CustomerFilters>({search:'',zone:'all',collector:'all',status:'all',due:'all',months:[],sort:'name'});
   const [billCustomer,setBillCustomer]=useState<string|null>(null);
   const [collectCustomer,setCollectCustomer]=useState<string|null>(null);
+  const [settlement,setSettlement]=useState<{customer:string;months:string[]}|null>(null);
   const filtered=filterCustomers(data.customers,data.bills,data.zones,filters);
   const change=(key:keyof CustomerFilters,value:string|string[])=>setFilters(f=>({...f,[key]:value}));
   const [edit, setEdit] = useState<{ table: Table; row: Record<string, string> | null } | null>(null);
@@ -148,7 +150,7 @@ function AdminPage() {
                     <div className="flex items-center gap-2"><span className="truncate font-medium">{c.name}</span><StatusBadge status={c.status} /></div>
                     <div className="truncate text-xs text-muted-foreground">{zoneName(c.zone_id)} · <span className="num">{c.phone}</span> · Due <span className="num">{formatBDT(c.outstanding)}</span></div>
                   </div>
-                  <div className="flex flex-wrap justify-end gap-1"><Button size="sm" variant="outline" onClick={()=>setBillCustomer(c.id)}>View</Button><Button size="sm" variant="collect" disabled={c.outstanding<=0} onClick={()=>setCollectCustomer(c.id)}>Collect</Button>{actions("customers", data.customers.find(x=>x.id===c.id) ?? c, c.name)}</div>
+                  <div className="flex flex-wrap justify-end gap-1"><Button size="sm" variant="outline" onClick={()=>setBillCustomer(c.id)}>View</Button><Button size="sm" variant="collect" disabled={!filters.months.length || c.outstanding<=0} onClick={()=>setSettlement({customer:c.id,months:[...filters.months]})}>Mark selected months Paid</Button><Button size="sm" variant="collect" disabled={c.outstanding<=0} onClick={()=>setCollectCustomer(c.id)}>Collect</Button>{actions("customers", data.customers.find(x=>x.id===c.id) ?? c, c.name)}</div>
                 </li>
               ))}
             </ul>
@@ -184,6 +186,7 @@ function AdminPage() {
       </div>
       {billCustomer && data.customers.find(c=>c.id===billCustomer) && <BillManager customer={data.customers.find(c=>c.id===billCustomer) as Customer} onClose={()=>setBillCustomer(null)} onSaved={refresh} />}
       <CollectDialog customer={data.customers.find(c=>c.id===collectCustomer) ?? null} collectorId={null} open={!!collectCustomer} onOpenChange={o=>!o&&setCollectCustomer(null)} />
+      {settlement && data.customers.filter(c=>c.id===settlement.customer).map(c=><MarkPaidDialog key={c.id} customer={c} months={settlement.months} onClose={()=>setSettlement(null)} />)}
       {edit && <EditDialog zones={data.zones} table={edit.table} row={edit.row} fields={fields[edit.table]} onClose={() => setEdit(null)} onSaved={refresh} />}
     </div>
   );
