@@ -1,7 +1,7 @@
 import { queryOptions, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
-import { customerStatus, todayISO, type BillStatus } from "./billing";
+import { todayISO, type BillStatus } from "./billing";
 import { billSummary, type MonthlyBill } from './monthly';
 
 export type Collector = Tables<"collectors">;
@@ -35,7 +35,10 @@ async function fetchAll(): Promise<AppData> {
   ]);
   const err = c.error || z.error || cu.error || p.error || b.error;
   if (err) throw err;
-  const bills = (b.data ?? []).filter(x=>x.id&&x.customer_id&&x.billing_month&&x.due_date).map(x=>({...x,amount:Number(x.amount),opening_paid:Number(x.opening_paid),outstanding:Number(x.outstanding)})) as MonthlyBill[];
+  const bills: MonthlyBill[] = (b.data ?? []).flatMap(x=>{
+    if(!x.id || !x.customer_id || !x.billing_month || !x.due_date || !x.created_at) return [];
+    return [{id:x.id,customer_id:x.customer_id,billing_month:x.billing_month,due_date:x.due_date,created_at:x.created_at,amount:Number(x.amount),opening_paid:Number(x.opening_paid),outstanding:Number(x.outstanding)}];
+  });
   return {
     collectors: c.data ?? [],
     zones: (z.data ?? []).map((zone) => ({

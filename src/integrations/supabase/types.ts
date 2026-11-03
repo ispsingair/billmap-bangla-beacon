@@ -381,7 +381,7 @@ export type Database = {
       }
       set_staff_role: {
         Args: {
-          p_collector: string
+          p_collector?: string
           p_role: Database["public"]["Enums"]["app_role"]
           p_user: string
         }

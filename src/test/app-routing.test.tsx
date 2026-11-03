@@ -14,4 +14,10 @@ describe("App routing", () => {
 
     expect(matches.at(-1)?.routeId).not.toBe(rootRouteId);
   });
+  it("registers admin beneath the authenticated layout", () => {
+    const router = createRouter({ routeTree, context: { queryClient: new QueryClient() } });
+    const matches = router.matchRoutes('/admin');
+    expect(matches.at(-1)?.routeId).toBe('/_authenticated/admin');
+    expect(matches.map(match=>match.routeId)).toContain('/_authenticated');
+  });
 });

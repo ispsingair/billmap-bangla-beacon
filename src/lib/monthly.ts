@@ -1,5 +1,6 @@
 import { customerStatus, todayISO, type BillStatus } from './billing';
-export type MonthlyBill = { id: string; customer_id: string; billing_month: string; amount: number; due_date: string; opening_paid: number; outstanding: number; legacy_import: boolean };
+import type { Tables } from '@/integrations/supabase/types';
+export type MonthlyBill = { [K in keyof Tables<'bill_balances'>]: NonNullable<Tables<'bill_balances'>[K]> };
 export function monthLabel(month: string) { return new Date(`${month.slice(0,7)}-01T12:00:00`).toLocaleDateString('en-GB',{month:'long',year:'numeric'}); }
 export function billSummary(bills: MonthlyBill[], today = todayISO()) {
   const outstanding = bills.reduce((sum,b)=>sum+Number(b.outstanding),0);
