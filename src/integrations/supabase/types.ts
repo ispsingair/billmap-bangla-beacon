@@ -111,6 +111,7 @@ export type Database = {
           customer_id: string
           due_date: string
           id: string
+          legacy_import: boolean
           opening_paid: number
         }
         Insert: {
@@ -120,6 +121,7 @@ export type Database = {
           customer_id: string
           due_date: string
           id?: string
+          legacy_import?: boolean
           opening_paid?: number
         }
         Update: {
@@ -129,6 +131,7 @@ export type Database = {
           customer_id?: string
           due_date?: string
           id?: string
+          legacy_import?: boolean
           opening_paid?: number
         }
         Relationships: [
@@ -367,10 +370,31 @@ export type Database = {
       }
       generate_monthly_bills: { Args: never; Returns: number }
       is_admin: { Args: never; Returns: boolean }
+      list_staff_accounts: {
+        Args: never
+        Returns: {
+          collector_id: string
+          email: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }[]
+      }
+      set_staff_role: {
+        Args: {
+          p_collector: string
+          p_role: Database["public"]["Enums"]["app_role"]
+          p_user: string
+        }
+        Returns: undefined
+      }
       sync_billing: { Args: never; Returns: number }
       void_collection: {
         Args: { p_payment: string; p_reason: string }
         Returns: undefined
+      }
+      zone_contains: {
+        Args: { latitude: number; longitude: number; poly: Json }
+        Returns: boolean
       }
     }
     Enums: {
