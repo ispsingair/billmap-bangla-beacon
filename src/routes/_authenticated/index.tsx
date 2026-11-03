@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { lazy, Suspense, useMemo, useState } from "react";
 import { LogOut, MapPin, Navigation, Phone, Route as RouteIcon, Search, Settings, Wallet, Wifi, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import { CollectDialog } from "@/components/CollectDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { appDataQuery, type Customer } from "@/lib/data";
 import { directionsUrl, formatBDT, type BillStatus } from "@/lib/billing";
+import { monthLabel } from "@/lib/monthly";
 import { cn } from "@/lib/utils";
 
 const CustomerMap = lazy(() => import("@/components/CustomerMap"));
@@ -34,6 +35,7 @@ type StatusFilter = "all" | BillStatus;
 function MapPage() {
   const { data } = useSuspenseQuery(appDataQuery);
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [status, setStatus] = useState<StatusFilter>("all");
   const [zoneId, setZoneId] = useState<string>("all");
   const [collectorId, setCollectorId] = useState<string>("all");
@@ -116,22 +118,25 @@ function MapPage() {
             </div>
           )}
         </div>
-        <Button variant="ghost" size="icon" asChild title="Admin">
+        {data.role === "admin" && <Button variant="ghost" size="icon" asChild title="Admin">
           <Link to="/admin"><Settings /></Link>
-        </Button>
+        </Button>}
         <Button
           variant="ghost"
           size="icon"
           title="Sign out"
           onClick={async () => {
+            await queryClient.cancelQueries();
+            queryClient.clear();
             await supabase.auth.signOut();
-            navigate({ to: "/auth" });
+            navigate({ to: "/auth", replace: true });
           }}
         >
           <LogOut />
         </Button>
       </header>
 
+      {!data.role && <p className="border-b bg-card p-3 text-sm">Your account is awaiting an administrator’s staff assignment.</p>}
       {/* Filters */}
       <div className="z-[1000] flex items-center gap-2 overflow-x-auto border-b bg-card px-3 py-2 [scrollbar-width:none]">
         {(["all", "paid", "unpaid", "overdue"] as const).map((s) => (
@@ -225,7 +230,7 @@ function Stat({ label, value, tone }: { label: string; value: string | number; t
   );
 }
 
-const panel = "absolute inset-x-2 bottom-2 z-[1000] rounded-2xl border bg-card p-4 glass sm:inset-x-auto sm:left-3 sm:bottom-3 sm:w-96";
+const panel = "max-h-[80%] overflow-y-auto absolute inset-x-2 bottom-2 z-[1000] rounded-2xl border bg-card p-4 glass sm:inset-x-auto sm:left-3 sm:bottom-3 sm:w-96";
 
 function CustomerCard({ c, zoneName, collectorName, onClose, onCollect }: {
   c: Customer; zoneName?: string | undefined; collectorName?: string | undefined; onClose: () => void; onCollect: () => void;
@@ -251,8 +256,9 @@ function CustomerCard({ c, zoneName, collectorName, onClose, onCollect }: {
         <Field k="Last payment" v={c.last_payment_date ? `${formatBDT(Number(c.last_payment_amount))} · ${c.last_payment_date}` : "—"} mono />
         <Field k="Due date" v={c.due_date} mono />
       </dl>
+      <div className="mt-3 max-h-40 overflow-y-auto divide-y text-xs">{c.bills.map(b=><div key={b.id} className="flex justify-between gap-2 py-1.5"><span>{monthLabel(b.billing_month)} · {b.outstanding>0?b.due_date:"Paid"}</span><b className="num">{formatBDT(b.outstanding)}</b></div>)}</div>
       <div className="mt-4 grid grid-cols-2 gap-2">
-        <Button variant="collect" size="lg" onClick={onCollect}>
+        <Button variant="collect" size="lg" onClick={onCollect} disabled={c.due_amount<=0}>
           <Wallet /> Collect
         </Button>
         <Button variant="outline" size="lg" asChild>
