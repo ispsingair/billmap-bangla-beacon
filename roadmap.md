@@ -1,4 +1,5 @@
 # Consolidated core pass
+- [ ] Add and verify admin customer location picker without schema or unrelated changes.
 - [x] Repair generated-type mismatches; verify clean preview compilation and regression tests.
 - [x] Add monthly bills, allocations, recurring generation and historical backfill.
 - [x] Enforce admin/assigned collector roles and secure owner access.
