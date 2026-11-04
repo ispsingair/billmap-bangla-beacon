@@ -123,6 +123,14 @@
   font-family: var(--font-sans);
   background: var(--muted);
 }
+.customer-location-pin {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--primary);
+  border: 3px solid var(--background);
+  box-shadow: var(--shadow-float);
+}
 .zone-label {
   background: transparent;
   border: none;
