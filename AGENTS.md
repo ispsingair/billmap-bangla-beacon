@@ -17,4 +17,5 @@
 - A customer's collector is derived from their zone's `collector_id`. Why: one assignment point per zone.
 - All data is staff-only with user_roles enforced by RLS: admins manage, collectors read assigned zones/customers and collect via RPC. Existing pre-upgrade staff retain admin; later signups have no access until assigned. Why: preserve legacy access without public privilege escalation.
 - The Leaflet map is lazy-loaded (`React.lazy`) so Leaflet never enters SSR.
+- Customer coordinate picking is lazy-loaded and writes both existing coordinate fields atomically; one-shot device location runs only on explicit action. Why: keeps Leaflet client-only and saves the chosen coordinates through the existing form.
 - Polygon editing uses lazy-loaded Leaflet Draw and Turf validation; automatic customer assignment only occurs for exactly one containing zone, with explicit selection for ambiguity. Why: avoid silently assigning overlapping zones.
