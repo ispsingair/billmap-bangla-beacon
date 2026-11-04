@@ -20,7 +20,9 @@ import { StaffSettings } from "@/components/StaffSettings";
 import { CollectDialog } from "@/components/CollectDialog";
 import { MarkPaidDialog } from "@/components/MarkPaidDialog";
 import { containingZones, validPolygon } from "@/lib/zones";
+import { parseCoordinates } from "@/lib/coordinates";
 const ZoneDrawing = lazy(()=>import('@/components/ZoneDrawing'));
+const LocationPicker = lazy(()=>import('@/components/LocationPicker'));
 
 export const Route = createFileRoute("/_authenticated/admin")({
   head: () => ({
@@ -62,7 +64,7 @@ function AdminPage() {
       { key: "phone", label: "Phone" },
       { key: "zone_id", label: "Zone", type: "select", options: zoneOpts },
       { key: "address", label: "Address", full: true },
-      { key: "lat", label: "Latitude", type: "number" },
+      { key: "lat", label: "Location", type: "number", full: true },
       { key: "lng", label: "Longitude", type: "number" },
       { key: "monthly_bill", label: "Monthly bill (৳)", type: "number" },
       { key: "billing_day", label: "Monthly due day (1–28)", type: "number" },
@@ -205,6 +207,7 @@ function EditDialog({ table, row, fields, onClose, onSaved, zones }: { zones:Zon
 
   async function save() {
     if (!form["name"]?.trim()) return void toast.error("Name is required");
+    if (table === "customers" && !parseCoordinates(form["lat"] ?? "", form["lng"] ?? "")) return void toast.error("Latitude must be −90 to 90 and longitude −180 to 180");
     const payload: Record<string, unknown> = {};
     for (const f of fields) {
       const v = form[f.key] ?? "";
@@ -244,10 +247,10 @@ function EditDialog({ table, row, fields, onClose, onSaved, zones }: { zones:Zon
       <DialogContent className="max-h-[90dvh] overflow-y-auto max-w-xl">
         <DialogHeader><DialogTitle>{row ? "Edit" : "Add"} {table.slice(0, -1)}</DialogTitle></DialogHeader>
         <div className="grid grid-cols-2 gap-3">
-          {fields.map((f) => (
+          {fields.filter((f) => !(table === "customers" && f.key === "lng")).map((f) => (
             <div key={f.key} className={f.full ? "col-span-2 grid gap-1.5" : "grid gap-1.5"}>
               <Label>{f.label}</Label>
-              {f.key === "polygon" ? <Suspense fallback={<p>Loading map…</p>}><ZoneDrawing points={points} zones={zones} onChange={setPoints} /></Suspense> : f.type === "select" ? (
+              {table === "customers" && f.key === "lat" ? <Suspense fallback={<p>Loading map…</p>}><LocationPicker lat={form["lat"] ?? ""} lng={form["lng"] ?? ""} onChange={(la, ln) => setForm((s) => ({ ...s, lat: la, lng: ln }))} /></Suspense> : f.key === "polygon" ? <Suspense fallback={<p>Loading map…</p>}><ZoneDrawing points={points} zones={zones} onChange={setPoints} /></Suspense> : f.type === "select" ? (
                 <Select value={form[f.key] || "__none"} onValueChange={(v) => set(f.key, v === "__none" ? "" : v)}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
