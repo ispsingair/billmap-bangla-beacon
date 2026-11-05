@@ -7,13 +7,22 @@ const mock = vi.hoisted(() => {
   const markerHandlers: Record<string, () => void> = {};
   const marker = { addTo: vi.fn(), on: vi.fn(), setLatLng: vi.fn(), getLatLng: vi.fn() };
   const map = { setView: vi.fn(), on: vi.fn(), invalidateSize: vi.fn(), remove: vi.fn(), getZoom: vi.fn(() => 16) };
-  return { mapHandlers, markerHandlers, marker, map };
+  const polygons: { points: unknown; opts: Record<string, unknown>; label?: string }[] = [];
+  const group = { addTo: vi.fn(), clearLayers: vi.fn(() => { polygons.length = 0; }), addLayer: vi.fn() };
+  return { mapHandlers, markerHandlers, marker, map, polygons, group };
 });
 vi.mock("leaflet", () => ({ default: {
   divIcon: vi.fn(),
   map: () => mock.map,
   tileLayer: () => ({ addTo: vi.fn() }),
   marker: () => mock.marker,
+  layerGroup: () => mock.group,
+  latLngBounds: (pts: unknown) => ({ pts }),
+  polygon: (points: unknown, opts: Record<string, unknown>) => {
+    const rec: { points: unknown; opts: Record<string, unknown>; label?: string } = { points, opts };
+    mock.polygons.push(rec);
+    return { bindTooltip: (label: string) => { rec.label = label; } };
+  },
 } }));
 import LocationPicker from "./LocationPicker";
 
@@ -25,6 +34,8 @@ function Form() {
 beforeEach(() => {
   vi.clearAllMocks();
   mock.map.setView.mockReturnValue(mock.map);
+  mock.group.addTo.mockReturnValue(mock.group);
+  (mock.map as unknown as { fitBounds: unknown }).fitBounds = vi.fn();
   mock.map.on.mockImplementation((event, cb) => { mock.mapHandlers[event] = cb; return mock.map; });
   mock.marker.addTo.mockReturnValue(mock.marker);
   mock.marker.on.mockImplementation((event, cb) => { mock.markerHandlers[event] = cb; return mock.marker; });
@@ -78,5 +89,32 @@ describe("Customer location picker", () => {
     unmount();
     act(() => success?.({ coords: { latitude: 26, longitude: 92, accuracy: 10 } }));
     expect(mock.map.remove).toHaveBeenCalledTimes(1);
+  });
+
+describe("Customer location picker zones", () => {
+  const sq = (o: number): [number, number][] => [[23.8 + o, 90.3], [23.8 + o, 90.4], [23.9 + o, 90.4], [23.9 + o, 90.3]];
+  const zones = [
+    { id: "a", name: "Mirpur 10", color: "#f00", polygon: sq(0) },
+    { id: "b", name: "Pallabi", color: "#0f0", polygon: sq(0.2) },
+    { id: "bad", name: "Broken", color: "#00f", polygon: [[1, 2]] as [number, number][] },
+  ];
+  it("renders valid zone boundaries with labels, non-interactive, skipping invalid ones", () => {
+    render(<LocationPicker lat="" lng="" onChange={() => {}} zones={zones} />);
+    expect(mock.polygons.map((p) => p.label)).toEqual(["Mirpur 10", "Pallabi"]);
+    expect(mock.polygons.every((p) => p.opts["interactive"] === false)).toBe(true);
+    expect((mock.map as unknown as { fitBounds: ReturnType<typeof vi.fn> }).fitBounds).toHaveBeenCalledTimes(1);
+  });
+  it("highlights the selected zone with a stronger border and fill", () => {
+    render(<LocationPicker lat="23.85" lng="90.35" onChange={() => {}} zones={zones} selectedZoneId="b" />);
+    const sel = mock.polygons.find((p) => p.label === "Pallabi")!;
+    const other = mock.polygons.find((p) => p.label === "Mirpur 10")!;
+    expect(sel.opts["weight"]).toBe(4);
+    expect(sel.opts["fillOpacity"]).toBe(0.22);
+    expect(other.opts["weight"]).toBe(1.5);
+    expect((mock.map as unknown as { fitBounds: ReturnType<typeof vi.fn> }).fitBounds).not.toHaveBeenCalled();
+  });
+  it("shows an empty-zones note when there are none", () => {
+    render(<LocationPicker lat="" lng="" onChange={() => {}} zones={[]} />);
+    expect(screen.getByText("No service zones to display yet.")).toBeInTheDocument();
   });
 });
