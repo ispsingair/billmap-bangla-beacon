@@ -91,6 +91,8 @@ describe("Customer location picker", () => {
     expect(mock.map.remove).toHaveBeenCalledTimes(1);
   });
 
+});
+
 describe("Customer location picker zones", () => {
   const sq = (o: number): [number, number][] => [[23.8 + o, 90.3], [23.8 + o, 90.4], [23.9 + o, 90.4], [23.9 + o, 90.3]];
   const zones = [
