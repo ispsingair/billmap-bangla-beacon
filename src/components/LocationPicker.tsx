@@ -6,8 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { parseCoordinates } from "@/lib/coordinates";
+import { validPolygon } from "@/lib/zones";
 
-type Props = { lat: string; lng: string; onChange: (lat: string, lng: string) => void };
+type ZoneShape = { id: string; name: string; color: string; polygon: [number, number][] };
+
+type Props = { lat: string; lng: string; onChange: (lat: string, lng: string) => void; zones?: ZoneShape[]; selectedZoneId?: string | null };
+const FALLBACK = { lat: 23.8069, lng: 90.3687 };
 
 const icon = L.divIcon({
   className: "",
@@ -17,7 +21,9 @@ const icon = L.divIcon({
 });
 const fmt = (n: number) => n.toFixed(6);
 
-export default function LocationPicker({ lat, lng, onChange }: Props) {
+export default function LocationPicker({ lat, lng, onChange, zones = [], selectedZoneId = null }: Props) {
+  const zoneLayer = useRef<L.LayerGroup | null>(null);
+  const safeZones = (Array.isArray(zones) ? zones : []).filter((z) => Array.isArray(z?.polygon) && validPolygon(z.polygon));
   const el = useRef<HTMLDivElement>(null);
   const map = useRef<L.Map | null>(null);
   const marker = useRef<L.Marker | null>(null);
@@ -38,8 +44,11 @@ export default function LocationPicker({ lat, lng, onChange }: Props) {
   useEffect(() => {
     if (!el.current) return;
     active.current = true;
-    const start = parseCoordinates(lat, lng) ?? { lat: 23.8069, lng: 90.3687 };
+    const own = parseCoordinates(lat, lng);
+    const start = own ?? FALLBACK;
     const m = L.map(el.current).setView([start.lat, start.lng], 16);
+    if (!own && safeZones.length) m.fitBounds(L.latLngBounds(safeZones.flatMap((z) => z.polygon)), { padding: [20, 20] });
+    zoneLayer.current = L.layerGroup().addTo(m);
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: "&copy; OpenStreetMap contributors" }).addTo(m);
     const mk = L.marker([start.lat, start.lng], { draggable: true, icon }).addTo(m);
     mk.on("dragend", () => {
@@ -65,9 +74,33 @@ export default function LocationPicker({ lat, lng, onChange }: Props) {
       m.remove();
       map.current = null;
       marker.current = null;
+      zoneLayer.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const zoneKey = JSON.stringify(safeZones.map((z) => [z.id, z.name, z.color, z.polygon]));
+  useEffect(() => {
+    const g = zoneLayer.current;
+    if (!g) return;
+    g.clearLayers();
+    // Draw selected zone last so it sits on top; overlays are non-interactive so clicks/drags reach the map and pin.
+    const ordered = [...safeZones].sort((a, b) => Number(a.id === selectedZoneId) - Number(b.id === selectedZoneId));
+    for (const z of ordered) {
+      const sel = z.id === selectedZoneId;
+      const poly = L.polygon(z.polygon, {
+        interactive: false,
+        color: z.color,
+        weight: sel ? 4 : 1.5,
+        opacity: sel ? 1 : 0.7,
+        fillOpacity: sel ? 0.22 : 0.04,
+        dashArray: sel ? undefined : "4 4",
+      });
+      poly.bindTooltip(z.name, { permanent: true, direction: "center", className: sel ? "zone-label zone-label-selected" : "zone-label", interactive: false });
+      g.addLayer(poly);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [zoneKey, selectedZoneId]);
 
   const parsed = parseCoordinates(lat, lng);
   useEffect(() => {
@@ -119,6 +152,7 @@ export default function LocationPicker({ lat, lng, onChange }: Props) {
         </Button>
         <span className="self-center text-xs text-muted-foreground">or tap the map / drag the pin</span>
       </div>
+      {safeZones.length === 0 && <p className="text-xs text-muted-foreground">No service zones to display yet.</p>}
       <div ref={el} aria-label="Customer location map" className="relative z-0 h-56 w-full overflow-hidden rounded-md border" />
       <div className="grid grid-cols-2 items-end gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
         <div className="grid gap-1.5">
