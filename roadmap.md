@@ -1,4 +1,5 @@
 # Consolidated core pass
+- [ ] Add admin customer/zone archive and restore, active-data filtering, 60-day secure scheduled purge, and regression checks without changing existing data or publishing.
 - [ ] Add and verify admin customer location picker without schema or unrelated changes.
 - [x] Repair generated-type mismatches; verify clean preview compilation and regression tests.
 - [x] Add monthly bills, allocations, recurring generation and historical backfill.
