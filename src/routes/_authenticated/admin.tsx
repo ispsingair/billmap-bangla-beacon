@@ -250,7 +250,7 @@ function EditDialog({ table, row, fields, onClose, onSaved, zones }: { zones:Zon
           {fields.filter((f) => !(table === "customers" && f.key === "lng")).map((f) => (
             <div key={f.key} className={f.full ? "col-span-2 grid gap-1.5" : "grid gap-1.5"}>
               <Label>{f.label}</Label>
-              {table === "customers" && f.key === "lat" ? <ClientOnly fallback={<p>Loading map…</p>}><Suspense fallback={<p>Loading map…</p>}><LocationPicker lat={form["lat"] ?? ""} lng={form["lng"] ?? ""} onChange={(la, ln) => setForm((s) => ({ ...s, lat: la, lng: ln }))} /></Suspense></ClientOnly> : f.key === "polygon" ? <Suspense fallback={<p>Loading map…</p>}><ZoneDrawing points={points} zones={zones} onChange={setPoints} /></Suspense> : f.type === "select" ? (
+              {table === "customers" && f.key === "lat" ? <ClientOnly fallback={<p>Loading map…</p>}><Suspense fallback={<p>Loading map…</p>}><LocationPicker lat={form["lat"] ?? ""} lng={form["lng"] ?? ""} onChange={(la, ln) => setForm((s) => ({ ...s, lat: la, lng: ln }))} zones={zones} selectedZoneId={form["zone_id"] || null} /></Suspense></ClientOnly> : f.key === "polygon" ? <Suspense fallback={<p>Loading map…</p>}><ZoneDrawing points={points} zones={zones} onChange={setPoints} /></Suspense> : f.type === "select" ? (
                 <Select value={form[f.key] || "__none"} onValueChange={(v) => set(f.key, v === "__none" ? "" : v)}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
