@@ -43,6 +43,13 @@
       "when": 1793677174150,
       "tag": "0005_admin_settle_selected_months",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1793855553411,
+      "tag": "0006_customer_zone_archive_retention",
+      "breakpoints": true
     }
   ]
 }

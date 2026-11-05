@@ -41,6 +41,7 @@ export type Database = {
       customers: {
         Row: {
           address: string
+          archived_at: string | null
           billing_day: number
           billing_start_month: string
           created_at: string
@@ -59,6 +60,7 @@ export type Database = {
         }
         Insert: {
           address?: string
+          archived_at?: string | null
           billing_day?: number
           billing_start_month?: string
           created_at?: string
@@ -77,6 +79,7 @@ export type Database = {
         }
         Update: {
           address?: string
+          archived_at?: string | null
           billing_day?: number
           billing_start_month?: string
           created_at?: string
@@ -278,6 +281,7 @@ export type Database = {
       }
       zones: {
         Row: {
+          archived_at: string | null
           collector_id: string | null
           color: string
           created_at: string
@@ -286,6 +290,7 @@ export type Database = {
           polygon: Json
         }
         Insert: {
+          archived_at?: string | null
           collector_id?: string | null
           color?: string
           created_at?: string
@@ -294,6 +299,7 @@ export type Database = {
           polygon?: Json
         }
         Update: {
+          archived_at?: string | null
           collector_id?: string | null
           color?: string
           created_at?: string
@@ -356,6 +362,7 @@ export type Database = {
       }
     }
     Functions: {
+      archive_purge_authorized: { Args: never; Returns: boolean }
       can_access_customer: { Args: { cid: string }; Returns: boolean }
       collect_months: {
         Args: {
@@ -389,6 +396,11 @@ export type Database = {
           p_receipt: string
         }
         Returns: string
+      }
+      purge_archived_records: { Args: never; Returns: Json }
+      set_record_archived: {
+        Args: { p_archive: boolean; p_id: string; p_kind: string }
+        Returns: undefined
       }
       set_staff_role: {
         Args: {
