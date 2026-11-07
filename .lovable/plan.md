@@ -94,9 +94,17 @@ BEGIN
     ) difference
   ) THEN RAISE EXCEPTION 'FK graph changed or ambiguous; reset stopped'; END IF;
 
-  -- The final executable migration will also pin the inspected trigger and
-  -- trigger-function definitions to a literal fingerprint from a fresh read.
-  -- No operation may execute without that fingerprint check being present.
+  IF (SELECT md5(string_agg(
+       t.tgrelid::regclass::text||':'||t.tgname::text||':'||t.tgenabled::text
+       ||':'||pg_get_triggerdef(t.oid)||':'||pg_get_functiondef(t.tgfoid),
+       E'\n' ORDER BY t.tgrelid::regclass::text,t.tgname))
+      FROM pg_trigger t WHERE NOT t.tgisinternal
+      AND t.tgrelid IN ('public.customers'::regclass,'public.zones'::regclass,
+                       'public.monthly_bills'::regclass,'public.payments'::regclass,
+                       'public.payment_allocations'::regclass))
+     IS DISTINCT FROM '79d7ba2944426b0c3f0665af5b0ea7f0' THEN
+    RAISE EXCEPTION 'Inspected triggers changed; reset stopped';
+  END IF;
 
   IF EXISTS (
     SELECT 1 FROM public.payment_allocations a
@@ -171,4 +179,4 @@ FROM PUBLIC, anon, authenticated, service_role;
 After reviewed reset preparation and separately approved execution: finish admin Archive/Restore and Archived view; separate active records for all existing map/selectors; retain financial history until expiry; configure and verify a daily SQL-only purge; add archive and database regression checks. Do not publish. Daily purge means eligible deletion may be delayed up to 24 hours; verify database scheduler authorization instead of relying on app publication.
 
 ## Review boundary
-This proposal is for review only. No deletion or migration will execute in this turn. The trigger fingerprint placeholder above must be replaced with the exact inspected fingerprint before the migration is submitted; it is not executable approval-ready SQL until that check is filled in.
+This proposal is for review only. No deletion or migration will execute in this turn. The trigger fingerprint was read from the live database; any later definition or enabled-state change will stop execution. Approval permits preparing the migration; the destructive operation remains a separate explicitly approved step.
