@@ -147,6 +147,24 @@ export type Database = {
           },
         ]
       }
+      one_time_data_operations: {
+        Row: {
+          consumed_at: string
+          operation_key: string
+          result: Json
+        }
+        Insert: {
+          consumed_at?: string
+          operation_key: string
+          result?: Json
+        }
+        Update: {
+          consumed_at?: string
+          operation_key?: string
+          result?: Json
+        }
+        Relationships: []
+      }
       payment_allocations: {
         Row: {
           amount: number
@@ -398,6 +416,7 @@ export type Database = {
         Returns: string
       }
       purge_archived_records: { Args: never; Returns: Json }
+      reset_customer_zones_once: { Args: never; Returns: Json }
       set_record_archived: {
         Args: { p_archive: boolean; p_id: string; p_kind: string }
         Returns: undefined

@@ -50,6 +50,13 @@
       "when": 1793855553411,
       "tag": "0006_customer_zone_archive_retention",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1794238127883,
+      "tag": "0007_one_time_demo_reset_guard",
+      "breakpoints": true
     }
   ]
 }
