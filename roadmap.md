@@ -1,5 +1,6 @@
 # Consolidated core pass
 - [ ] Inspect dependencies and execute separately the explicitly authorized one-time customer/zone reset; preserve collectors, auth and settings, report exact counts.
+- [ ] Diagnose blocked admin deletion, replace obsolete Delete with guarded Archive/Restore, and verify preserved-row fingerprints and reset counts.
 - [ ] Add admin customer/zone archive and restore, active-data filtering, 60-day secure scheduled purge, and regression checks without changing existing data or publishing.
 - [ ] Add and verify admin customer location picker without schema or unrelated changes.
 - [x] Repair generated-type mismatches; verify clean preview compilation and regression tests.
